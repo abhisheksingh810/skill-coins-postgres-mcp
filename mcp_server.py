@@ -343,6 +343,6 @@ if __name__ == "__main__":
     print("- execute_sql_query: Execute SQL queries against PostgreSQL database")
     print("- get_database_schema: Get database schema information")
     
-    port = int(os.getenv('PORT', '8000'))
+    port = int(os.getenv('PORT', '10000'))
     app.run(transport='streamable-http', port=port)
 
