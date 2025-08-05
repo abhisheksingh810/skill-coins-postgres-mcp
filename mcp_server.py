@@ -59,21 +59,38 @@ class DatabaseManager:
         import time
         start_time = time.time()
         
+        # Check if query is read-only
+        sql_upper = sql_query.strip().upper()
+        forbidden_keywords = ['INSERT', 'UPDATE', 'DELETE', 'DROP', 'ALTER', 'CREATE', 'TRUNCATE', 'GRANT', 'REVOKE']
+        
+        for keyword in forbidden_keywords:
+            if keyword in sql_upper:
+                execution_time = time.time() - start_time
+                error_msg = f"This MCP server only allows read-only queries. The query contains '{keyword}' which is not permitted. Please use only SELECT queries to read data from the database."
+                logger.warning(f"Blocked non-read-only query: {sql_query}")
+                return QueryResult(
+                    sql_query=sql_query,
+                    results=[],
+                    row_count=0,
+                    execution_time=execution_time,
+                    error=error_msg
+                )
+        
         try:
             conn = self.get_connection()
             cursor = conn.cursor(cursor_factory=RealDictCursor)
             
             cursor.execute(sql_query)
             
-            # Fetch results
+            # Fetch results (should only be SELECT queries now)
             if cursor.description:  # SELECT query
                 results = [dict(row) for row in cursor.fetchall()]
                 row_count = len(results)
-            else:  # INSERT, UPDATE, DELETE query
+            else:  # This shouldn't happen with read-only queries, but handle gracefully
                 results = []
-                row_count = cursor.rowcount
+                row_count = 0
             
-            conn.commit()
+            # No commit needed for read-only queries
             cursor.close()
             conn.close()
             
@@ -155,9 +172,11 @@ app = FastMCP("postgres-nl-query-server")
 @app.tool()
 async def execute_sql_query(input_data: SQLQuery) -> QueryResult:
     """
-    Execute a SQL query against the PostgreSQL database and return the results.
+    Execute a read-only SQL query against the PostgreSQL database and return the results.
     
     This tool takes a SQL query and executes it directly against the database.
+    ONLY SELECT queries are allowed - all INSERT, UPDATE, DELETE, ALTER, DROP, CREATE,
+    TRUNCATE, GRANT, and REVOKE operations are blocked for security.
     The LLM client (like Claude Desktop, Copilot, etc.) should handle the conversion
     from natural language to SQL and any result transformation.
     
@@ -344,5 +363,5 @@ if __name__ == "__main__":
     print("- get_database_schema: Get database schema information")
     
     port = int(os.getenv('PORT', '10000'))
-    app.run(transport='streamable-http', port=port, host='0.0.0.0')
+    app.run(transport='streamable-http', port=port)
 
