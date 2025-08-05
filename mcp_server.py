@@ -363,5 +363,5 @@ if __name__ == "__main__":
     print("- get_database_schema: Get database schema information")
     
     port = int(os.getenv('PORT', '10000'))
-    app.run(transport='streamable-http', port=port)
-
+    app.run(transport='streamable-http', port=port, host='0.0.0.0')
+    # app.run(transport='streamable-http', port=port)
